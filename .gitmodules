@@ -1,0 +1,6 @@
+[submodule "APublicizer"]
+	path = APublicizer
+	url = https://github.com/iRebbok/APublicizer.git
+[submodule "EXILED"]
+	path = EXILED
+	url = https://github.com/galaxy119/EXILED.git

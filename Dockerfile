@@ -34,7 +34,7 @@ RUN /usr/games/steamcmd +login anonymous +force_install_dir /home/steam/scpslds 
 
 ## C# Setup
 # These containers are a generic base for building and running C# code
-# We need the fat version for nuget
+# We need the fat version for msbuild and nuget
 FROM mono:6.12 as cs-build
 RUN useradd -ms /bin/bash build
 WORKDIR /home/build
@@ -43,6 +43,7 @@ USER build
 # APublicizer requires C# 9.0/.NET 5.0, so create a special .NET 5.0 container
 # It'll be the future, eventually
 FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim as cs5-build
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 RUN useradd -ms /bin/bash build
 WORKDIR /home/build
 USER build
@@ -50,6 +51,7 @@ USER build
 # Exiled.Patcher uses .NET Core 3.1, so it gets its own container too
 # No, you can't reuse the 5.0 container here
 FROM mcr.microsoft.com/dotnet/sdk:3.1-buster as cs31-build
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 RUN useradd -ms /bin/bash build
 WORKDIR /home/build
 USER build
@@ -108,6 +110,10 @@ ENV EXILED_REFERENCES=/home/build/Managed
 COPY --from=steam /home/steam/scpslds/SCPSL_Data/Managed/*.dll /home/build/Managed/
 COPY --from=apublicizer /home/build/APublicizer/Assembly-CSharp-Publicized.dll /home/build/Managed/
 COPY --from=exiled-build /home/build/EXILED/bin/Release/*.dll /home/build/Managed/
+RUN mkdir plugin
+
+WORKDIR /home/build/plugin
+ENTRYPOINT ["/usr/bin/msbuild"]
 
 FROM cs-run as server-run
 

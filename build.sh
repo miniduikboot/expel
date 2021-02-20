@@ -9,3 +9,6 @@ for target in server-run plugin-build
 do
     docker build -t expel-$target --target $target . 
 done
+
+# The launcher is in a seperate file because it is completely independent of the other stages
+docker build -t expel-launcher -f Dockerfile.launcher .

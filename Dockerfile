@@ -127,10 +127,11 @@ RUN apt-get update \
 
 USER run
 
+COPY ./scripts/run-exiled.sh /home/run/run-exiled.sh
 COPY --from=steam /home/steam/scpslds/ /home/run/scpslds/
 COPY --from=exiled-patcher-build /home/build/EXILED/Exiled.Patcher/Assembly-CSharp-Exiled.dll /home/run/scpslds/SCPSL_Data/Managed/Assembly-CSharp.dll
-COPY --from=exiled-build /home/build/artifacts/EXILED /home/run/.config/EXILED
+COPY --from=exiled-build /home/build/artifacts/EXILED /home/run/EXILED
 
 EXPOSE 7777/udp
 WORKDIR /home/run/scpslds
-CMD ["/usr/bin/tini", "/home/run/scpslds/LocalAdmin", "7777"]
+CMD ["/usr/bin/tini", "/home/run/run-exiled.sh", "/home/run/scpslds/LocalAdmin", "7777"]

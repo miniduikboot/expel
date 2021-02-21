@@ -149,9 +149,16 @@ def build(args):
         "expel-plugin-build",
         build_mounts(args.working_directory),
         [
-            # TODO minimalize this list. The first item are the SL reference,
-            # one of the others is needed for NuGet
-            '-p:AssemblySearchPaths="/home/build/Managed;{CandidateAssemblyFiles};{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName}"',
+            # Append the directy with EXILED's references to the back of the
+            # default value of AssemblySearchPaths.
+            #
+            # If it'd be prepended instead MSBuild would copy over System.*.dll
+            # files to the publish dir, which is not needed.
+            '-p:AssemblySearchPaths="{CandidateAssemblyFiles};'
+            '{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName};'
+            '/home/build/Managed"',
+
+            # Build the plugin in release mode by default
             "-p:Configuration=Release"
         ],
     )

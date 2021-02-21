@@ -16,6 +16,7 @@ import sys
 from typing import List
 from pathlib import Path
 
+required_python = [3, 6]
 
 # DOCKER WRAPPER
 
@@ -209,6 +210,27 @@ def run(args):
     run_container("expel-server-run", run_mounts(args.working_directory), [])
 
 
+def doctor(args):
+    """
+    Print system information. Use this when creating a bug report
+    """
+    print(f"Running in container: {inside_container}")
+    print(f"Python version: {sys.version}")
+    if (sys.version_info.major != required_python[0] or
+            sys.version_info.minor < required_python[1]):
+        print(
+            "WARNING: expel requires Python "
+            f"{required_python[0]}.{required_python[1]}. "
+            "Please update your python installation.")
+    print("Docker system info:")
+    subprocess.run(["docker", "system", "info"])
+    print("Docker images:")
+    subprocess.run(["docker", "images", "expel-*"])
+    print("Build env EXILED version:")
+    subprocess.run(["docker", "run", "--entrypoint", "ikdasm", "expel-plugin-build",
+                    "-assembly", "/home/build/Managed/Exiled.API.dll"])
+
+
 def list_tasks(print_header=True):
     """
     List all commands and a short descriptions of them
@@ -220,7 +242,7 @@ def list_tasks(print_header=True):
         print(f"{task.__name__}: {task.__doc__}")
 
 
-tasks = [build, install, list_tasks, restore, run]
+tasks = [build, doctor, install, list_tasks, restore, run]
 
 
 def main():

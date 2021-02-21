@@ -9,6 +9,7 @@ This script launches containers for EXPEL to help the user build containers.
 # Please contact the project maintainers BEFORE importing a third-party library
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 
@@ -168,7 +169,26 @@ def install(args):
     """
     Install the plugin to the local server
     """
-    raise NotImplementedError("sorry")
+    # We're making a bunch of assumptions to make this process simpler:
+    # 1. Your .csproj file has the same name as your plugin
+    # 2. The other .dll's are dependencies of your plugin
+    # 3. There are no other .dll's in the bin folder
+
+    work_dir = args.working_directory
+    if inside_container:
+        work_dir = '/work'
+    plugins = {csproj.stem for csproj in Path(work_dir).glob('**/*.csproj')}
+
+    build_dir = work_dir / expel_cache / 'build-bin' / 'Release'
+    plug_dir = work_dir / expel_cache / 'server-config' / 'EXILED' / 'Plugins'
+    deps_dir = plug_dir / 'dependencies'
+    for dll in build_dir.glob('*.dll'):
+        if dll.stem in plugins:
+            print(f"{dll} is a plugin")
+            shutil.copy(dll, plug_dir)
+        else:
+            print(f"{dll} is a dependency")
+            shutil.copy(dll, deps_dir)
 
 
 def restore(args):

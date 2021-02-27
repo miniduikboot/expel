@@ -76,20 +76,22 @@ class DockerBindMount:
         return result
 
 
-def run_container(name: str, mounts: List[DockerBindMount], args: List[str]):
+def run_container(name: str, mounts: List[DockerBindMount], docker_args: List[str], args: List[str]):
     """
     Run a docker container
 
     Arguments:
     - name: name of the docker container
     - mounts: list of bindmounts for the container
+    - docker_args: arguments for the docker container
     - args: arguments to the command in the Docker container.
     """
-    cmd: List[str] = ["docker", "run", "-it"]
+    cmd: List[str] = ["docker", "run", "-it", "--rm"]
     for mount in mounts:
         mount.create_source_dir()
         cmd.append("--mount")
         cmd.append(mount.mount_arg())
+    cmd += docker_args
     cmd.append(name)
     cmd += args
     subprocess.run(cmd, check=True)
@@ -149,7 +151,8 @@ def build(args):
     """
     run_container(
         "expel-plugin-build",
-        build_mounts(args.working_directory),
+        build_mounts(),
+        [],
         [
             # Append the directy with EXILED's references to the back of the
             # default value of AssemblySearchPaths.
@@ -199,6 +202,7 @@ def restore(args):
     run_container(
         "expel-plugin-build",
         restore_mounts(args.working_directory),
+        [],
         ["-t:restore"],
     )
 
@@ -207,7 +211,8 @@ def run(args):
     """
     Run an EXILED server to test your plugin
     """
-    run_container("expel-server-run", run_mounts(args.working_directory), [])
+    run_container("expel-server-run", run_mounts(args.working_directory),
+                  ['--publish', '7777:7777/udp'], [])
 
 
 def doctor(args):

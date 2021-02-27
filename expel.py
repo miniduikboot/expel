@@ -14,19 +14,11 @@ import subprocess
 import sys
 
 from typing import List
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 required_python = [3, 6]
 
 # DOCKER WRAPPER
-
-# When working with Docker sibling containers, the mount path is on the host
-# filesystem. However when we create the directory we need a path inside the
-# container.
-
-# During container build we set an environment flag to see if we run inside a
-# docker container, check it here
-inside_container = os.environ.get('EXPEL_INSIDE_CONTAINER') == '1'
 
 
 class DockerBindMount:
@@ -37,17 +29,15 @@ class DockerBindMount:
     container. Changes will be written back immediately on the host.
     """
 
-    def __init__(self, host_dir: Path, src: Path, dst: str, readonly: bool = False):
+    def __init__(self, src: Path, dst: str, readonly: bool = False):
         """
         Create a bind mount
 
         Arguments:
-        - host_dir: working directory on host
         - src: path relative to host prefix
         - dst: path in container
         - readonly: whether the directory should be mounted readonly
         """
-        self.host_dir = host_dir
         self.src = src
         self.dst = dst
         self.readonly = readonly
@@ -57,19 +47,16 @@ class DockerBindMount:
         Create the source directory. This needs to be created before starting
         the container, otherwise Docker will error out
         """
-        if inside_container:
-            src = "/work" / self.src
-        else:
-            src = self.host_dir / self.src
+        src = options["build_path"] / self.src
 
         if not src.resolve().is_dir():
-            self.src.mkdir(parents=True)
+            src.mkdir(parents=True)
 
     def mount_arg(self) -> str:
         """
         Get the mount argument to put after a --mount flag
         """
-        src = (self.host_dir / self.src).resolve()
+        src = options['host_path'] / self.src
         result = f"type=bind,src={src},dst={self.dst}"
         if self.readonly:
             result += ",readonly"
@@ -104,48 +91,44 @@ def run_container(name: str, mounts: List[DockerBindMount], docker_args: List[st
 expel_cache = Path(".expel")
 
 
-def restore_mounts(workdir: Path):
+def restore_mounts():
     """
     Mounts for restoring. This needs the obj folder of the project
     and the nuget cache dirs.
     """
     return [
-        DockerBindMount(workdir, Path("."), "/home/build/plugin", True),
-        DockerBindMount(workdir, expel_cache / "build-obj",
-                        "/home/build/plugin/obj"),
-        DockerBindMount(workdir, expel_cache /
-                        "build-nuget", "/home/build/.nuget"),
-        DockerBindMount(workdir, expel_cache / "build-nuget-cache",
+        DockerBindMount(Path("."), "/home/build/plugin", True),
+        DockerBindMount(expel_cache / "build-obj", "/home/build/plugin/obj"),
+        DockerBindMount(expel_cache / "build-nuget", "/home/build/.nuget"),
+        DockerBindMount(expel_cache / "build-nuget-cache",
                         "/home/build/.local/share/NuGet/"),
     ]
 
 
-def build_mounts(workdir: Path):
+def build_mounts():
     """
     Mounts for building. This needs the bin and object dirs, as well as the
     nuget cache dirs
     """
-    return restore_mounts(workdir) + [
-        DockerBindMount(workdir, expel_cache / "build-bin",
-                        "/home/build/plugin/bin")
+    return restore_mounts() + [
+        DockerBindMount(expel_cache / "build-bin", "/home/build/plugin/bin")
     ]
 
 
-def run_mounts(workdir: Path):
+def run_mounts():
     """
     Mounts for running the server. This just needs a special dir to store the
     server config in
     """
     return [
-        DockerBindMount(workdir, expel_cache /
-                        "server-config", "/home/run/.config")
+        DockerBindMount(expel_cache / "server-config", "/home/run/.config")
     ]
 
 
 # TASK DEFINITION
 
 
-def build(args):
+def build():
     """
     Build the plugin
     """
@@ -169,7 +152,7 @@ def build(args):
     )
 
 
-def install(args):
+def install():
     """
     Install the plugin to the local server
     """
@@ -178,9 +161,7 @@ def install(args):
     # 2. The other .dll's are dependencies of your plugin
     # 3. There are no other .dll's in the bin folder
 
-    work_dir = args.working_directory
-    if inside_container:
-        work_dir = '/work'
+    work_dir = options["build_path"]
     plugins = {csproj.stem for csproj in Path(work_dir).glob('**/*.csproj')}
 
     build_dir = work_dir / expel_cache / 'build-bin' / 'Release'
@@ -195,31 +176,31 @@ def install(args):
             shutil.copy(dll, deps_dir)
 
 
-def restore(args):
+def restore():
     """
     Install NuGet dependencies for the plugin
     """
     run_container(
         "expel-plugin-build",
-        restore_mounts(args.working_directory),
+        restore_mounts(),
         [],
         ["-t:restore"],
     )
 
 
-def run(args):
+def run():
     """
     Run an EXILED server to test your plugin
     """
-    run_container("expel-server-run", run_mounts(args.working_directory),
+    run_container("expel-server-run", run_mounts(),
                   ['--publish', '7777:7777/udp'], [])
 
 
-def doctor(args):
+def doctor():
     """
     Print system information. Use this when creating a bug report
     """
-    print(f"Running in container: {inside_container}")
+    print(f"Running in container: {os.environ.get('EXPEL_INSIDE_CONTAINER')}")
     print(f"Python version: {sys.version}")
     if (sys.version_info.major != required_python[0] or
             sys.version_info.minor < required_python[1]):
@@ -249,6 +230,15 @@ def list_tasks(print_header=True):
 
 tasks = [build, doctor, install, list_tasks, restore, run]
 
+# Global options of the program
+# They are set in the main method, then read from elsewhere
+# - `host_path` is the working directory on the host. This may be a pure path.
+# - `build_path` is the working directory inside the current environment.
+# When working with Docker sibling containers, the mount path is on the host
+# filesystem. However when we create the directory we need a path inside the
+# container, hence the need for host_path and build_path.
+options = {}
+
 
 def main():
     """
@@ -261,15 +251,37 @@ def main():
 
     parser.add_argument(
         "--working-directory",
-        type=Path,
-        default=Path.cwd(),
+        type=str,
+        default=".",
         help="Use a different directory than the current directory",
     )
+    parser.add_argument(
+        "--windows",
+        action='store_true',
+        help="Interpret host paths as Windows paths",
+    )
     args = parser.parse_args()
-    type(args)
+
+    # When running inside a docker container on Windows we need to manipulate
+    # the host path as a Windows path, otherwise we can use system native paths
+    if args.windows:
+        options['host_path'] = PureWindowsPath(args.working_directory)
+    else:
+        options['host_path'] = Path(args.working_directory).resolve()
+
+    # If we're running inside a container, we need to create directories in a
+    # different location
+    # During container build we set an environment variable to see if we run
+    # inside the docker container, check it here.
+    if os.environ.get('EXPEL_INSIDE_CONTAINER') == '1':
+        # Path is hardcoded in Dockerfile
+        options['build_path'] = Path("/work/")
+    else:
+        options['build_path'] = options['host_path']
+
     for task in tasks:
         if args.task == task.__name__:
-            task(args)
+            task()
             sys.exit(0)
     print("Could not find a task with that name. Try one of the following:")
     list_tasks(False)

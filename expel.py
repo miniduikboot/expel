@@ -75,7 +75,10 @@ def run_container(
     - docker_args: arguments for the docker container
     - args: arguments to the command in the Docker container.
     """
-    cmd: List[str] = ["docker", "run", "-it", "--rm"]
+    cmd: List[str] = ["docker"]
+    if options["docker_host"] is not None:
+        cmd += ["-H", options["docker_host"]]
+    cmd += ["run", "-it", "--rm"]
     for mount in mounts:
         mount.create_source_dir()
         cmd.append("--mount")
@@ -252,6 +255,7 @@ tasks = [build, doctor, install, list_tasks, restore, run]
 
 # Global options of the program
 # They are set in the main method, then read from elsewhere
+# - `docker_host` is a string that is set if Docker uses a nondefault socket
 # - `host_path` is the working directory on the host. This may be a pure path.
 # - `build_path` is the working directory inside the current environment.
 # When working with Docker sibling containers, the mount path is on the host
@@ -269,6 +273,11 @@ def main():
     )
     parser.add_argument("task", type=str, help="Run a specific task")
 
+    parser.add_argument(
+        "--docker-host",
+        type=str,
+        help="Let Docker use a different socket to connect to the daemon",
+    )
     parser.add_argument(
         "--working-directory",
         type=str,
@@ -298,6 +307,8 @@ def main():
         options["build_path"] = Path("/work/")
     else:
         options["build_path"] = options["host_path"]
+
+    options["docker_host"] = args.docker_host
 
     for task in tasks:
         if args.task == task.__name__:

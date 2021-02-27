@@ -21,9 +21,9 @@ IF "%interactive%"=="0" (
 
 docker run -it --rm ^
     --mount type=bind,src="%CD%",dst=/work ^
-    --mount type=bind,src=//var/run/docker.sock,dst=/var/run/docker.sock ^
     expel-launcher ^
     --windows ^
+    --docker-host="tcp://host.docker.internal:2375" ^
     --working-directory="%CD%" ^
     %args%
 

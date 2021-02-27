@@ -20,7 +20,7 @@ Your system needs to have the following:
 
 - Docker 19.03 or newer (for BuildKit support)
 - Python 3.6 or newer (only if you're using system Python)
-- Around 5GB of storage (I'm working on reducing this)
+- Around 4GB of storage for the Docker images
 
 With respect to operating systems, we have a table that lists how you can best run the program:
 

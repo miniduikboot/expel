@@ -36,26 +36,17 @@ RUN /usr/games/steamcmd +login anonymous +force_install_dir /home/steam/scpslds 
 # These containers are a generic base for building and running C# code
 # We need the fat version for msbuild and nuget
 FROM mono:6.12 as cs-build
-RUN useradd -ms /bin/bash build
+RUN useradd -u 2965 -ms /bin/bash build
 WORKDIR /home/build
 USER build
 
 # APublicizer requires C# 9.0/.NET 5.0, so create a special .NET 5.0 container
-# It'll be the future, eventually
+# Exiled.Patcher also needs .NET Core
 FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim as cs5-build
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
-RUN useradd -ms /bin/bash build
+RUN useradd -u 2965 -ms /bin/bash build
 WORKDIR /home/build
 USER build
-
-# Exiled.Patcher uses .NET Core 3.1, so it gets its own container too
-# No, you can't reuse the 5.0 container here
-FROM mcr.microsoft.com/dotnet/sdk:3.1-buster as cs31-build
-ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
-RUN useradd -ms /bin/bash build
-WORKDIR /home/build
-USER build
-
 
 # Small Runtime container for running C# code with Mono
 FROM mono:6.12-slim as cs-run
@@ -80,7 +71,12 @@ FROM cs-build as exiled-build
 COPY --chown=build:build EXILED EXILED
 WORKDIR /home/build/EXILED
 ENV EXILED_REFERENCES=/home/build/Managed
-RUN nuget restore
+RUN --mount=type=cache,id=nuget,target=/home/build/.local/share/NuGet/,uid=2965 \
+  for project in API Bootstrap CreditTags Events Example Loader Permissions Updater; \
+  do \
+    msbuild -t:restore Exiled.$project; \
+  done
+
 
 # Assemble the references
 COPY --from=steam /home/steam/scpslds/SCPSL_Data/Managed/*.dll /home/build/Managed/
@@ -92,12 +88,13 @@ COPY ./scripts/assemble-exiled.sh .
 RUN ./assemble-exiled.sh
 
 # Build EXILED's patcher to create the patched Assembly-CSharp.dll
-FROM cs31-build as exiled-patcher-build
+# By default, this uses .NET Core 3.1, but we override this to .NET 5.0.
+FROM cs5-build as exiled-patcher-build
 
 COPY --chown=build:build EXILED EXILED
 WORKDIR /home/build/EXILED/Exiled.Patcher
-RUN dotnet restore 
-RUN dotnet build --configuration Release --runtime linux-x64
+RUN --mount=type=cache,id=nuget,target=/home/build/.local/share/NuGet/,uid=2965 dotnet restore -p:TargetFramework=net5.0
+RUN dotnet build --configuration Release --runtime linux-x64 -p:TargetFramework=net5.0
 # Run the patcher. It injects Exiled.Bootstrap.dll into Assembly-CSharp.dll, then writes it as Assembly-CSharp-Exiled.dll
 COPY --from=steam /home/steam/scpslds/SCPSL_Data/Managed/Assembly-CSharp.dll .
 COPY --from=exiled-build /home/build/EXILED/bin/Release/Exiled.Bootstrap.dll .

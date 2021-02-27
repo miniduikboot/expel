@@ -56,14 +56,16 @@ class DockerBindMount:
         """
         Get the mount argument to put after a --mount flag
         """
-        src = options['host_path'] / self.src
+        src = options["host_path"] / self.src
         result = f"type=bind,src={src},dst={self.dst}"
         if self.readonly:
             result += ",readonly"
         return result
 
 
-def run_container(name: str, mounts: List[DockerBindMount], docker_args: List[str], args: List[str]):
+def run_container(
+    name: str, mounts: List[DockerBindMount], docker_args: List[str], args: List[str]
+):
     """
     Run a docker container
 
@@ -100,8 +102,9 @@ def restore_mounts():
         DockerBindMount(Path("."), "/home/build/plugin", True),
         DockerBindMount(expel_cache / "build-obj", "/home/build/plugin/obj"),
         DockerBindMount(expel_cache / "build-nuget", "/home/build/.nuget"),
-        DockerBindMount(expel_cache / "build-nuget-cache",
-                        "/home/build/.local/share/NuGet/"),
+        DockerBindMount(
+            expel_cache / "build-nuget-cache", "/home/build/.local/share/NuGet/"
+        ),
     ]
 
 
@@ -120,9 +123,7 @@ def run_mounts():
     Mounts for running the server. This just needs a special dir to store the
     server config in
     """
-    return [
-        DockerBindMount(expel_cache / "server-config", "/home/run/.config")
-    ]
+    return [DockerBindMount(expel_cache / "server-config", "/home/run/.config")]
 
 
 # TASK DEFINITION
@@ -143,11 +144,10 @@ def build():
             # If it'd be prepended instead MSBuild would copy over System.*.dll
             # files to the publish dir, which is not needed.
             '-p:AssemblySearchPaths="{CandidateAssemblyFiles};'
-            '{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName};'
+            "{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName};"
             '/home/build/Managed"',
-
             # Build the plugin in release mode by default
-            "-p:Configuration=Release"
+            "-p:Configuration=Release",
         ],
     )
 
@@ -162,11 +162,11 @@ def install():
     # 3. There are no other .dll's in the bin folder
 
     work_dir = options["build_path"]
-    plugins = {csproj.stem for csproj in Path(work_dir).glob('**/*.csproj')}
+    plugins = {csproj.stem for csproj in Path(work_dir).glob("**/*.csproj")}
 
-    build_dir = work_dir / expel_cache / 'build-bin' / 'Release'
-    plug_dir = work_dir / expel_cache / 'server-config' / 'EXILED' / 'Plugins'
-    deps_dir = plug_dir / 'dependencies'
+    build_dir = work_dir / expel_cache / "build-bin" / "Release"
+    plug_dir = work_dir / expel_cache / "server-config" / "EXILED" / "Plugins"
+    deps_dir = plug_dir / "dependencies"
 
     if not build_dir.exists():
         print("ERROR: Build directory not found, please build your plugin first")
@@ -176,7 +176,7 @@ def install():
         print("Creating Plugins folder")
         deps_dir.mkdir(parents=True)
 
-    for dll in build_dir.glob('*.dll'):
+    for dll in build_dir.glob("*.dll"):
         if dll.stem in plugins:
             print(f"{dll} is a plugin")
             shutil.copy(dll, plug_dir)
@@ -201,8 +201,7 @@ def run():
     """
     Run an EXILED server to test your plugin
     """
-    run_container("expel-server-run", run_mounts(),
-                  ['--publish', '7777:7777/udp'], [])
+    run_container("expel-server-run", run_mounts(), ["--publish", "7777:7777/udp"], [])
 
 
 def doctor():
@@ -211,19 +210,31 @@ def doctor():
     """
     print(f"Running in container: {os.environ.get('EXPEL_INSIDE_CONTAINER')}")
     print(f"Python version: {sys.version}")
-    if (sys.version_info.major != required_python[0] or
-            sys.version_info.minor < required_python[1]):
+    if (
+        sys.version_info.major != required_python[0]
+        or sys.version_info.minor < required_python[1]
+    ):
         print(
             "WARNING: expel requires Python "
             f"{required_python[0]}.{required_python[1]}. "
-            "Please update your python installation.")
+            "Please update your python installation."
+        )
     print("Docker system info:")
     subprocess.run(["docker", "system", "info"])
     print("Docker images:")
     subprocess.run(["docker", "images", "expel-*"])
     print("Build env EXILED version:")
-    subprocess.run(["docker", "run", "--entrypoint", "ikdasm", "expel-plugin-build",
-                    "-assembly", "/home/build/Managed/Exiled.API.dll"])
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--entrypoint",
+            "ikdasm",
+            "expel-plugin-build",
+            "-assembly",
+            "/home/build/Managed/Exiled.API.dll",
+        ]
+    )
 
 
 def list_tasks(print_header=True):
@@ -266,7 +277,7 @@ def main():
     )
     parser.add_argument(
         "--windows",
-        action='store_true',
+        action="store_true",
         help="Interpret host paths as Windows paths",
     )
     args = parser.parse_args()
@@ -274,19 +285,19 @@ def main():
     # When running inside a docker container on Windows we need to manipulate
     # the host path as a Windows path, otherwise we can use system native paths
     if args.windows:
-        options['host_path'] = PureWindowsPath(args.working_directory)
+        options["host_path"] = PureWindowsPath(args.working_directory)
     else:
-        options['host_path'] = Path(args.working_directory).resolve()
+        options["host_path"] = Path(args.working_directory).resolve()
 
     # If we're running inside a container, we need to create directories in a
     # different location
     # During container build we set an environment variable to see if we run
     # inside the docker container, check it here.
-    if os.environ.get('EXPEL_INSIDE_CONTAINER') == '1':
+    if os.environ.get("EXPEL_INSIDE_CONTAINER") == "1":
         # Path is hardcoded in Dockerfile
-        options['build_path'] = Path("/work/")
+        options["build_path"] = Path("/work/")
     else:
-        options['build_path'] = options['host_path']
+        options["build_path"] = options["host_path"]
 
     for task in tasks:
         if args.task == task.__name__:

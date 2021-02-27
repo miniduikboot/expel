@@ -2,6 +2,9 @@
 set -euo pipefail
 
 # Create containers and push them to the local registry
+# Run this every time after you updated your EXPEL repoman
+
+# /!\ Note for contributors: If you make changes here, keep build.cmd in sync please.
 
 export DOCKER_BUILDKIT=1
 # As plugin-build is just copying files and server-run actually installs things, create server-run first to save time.

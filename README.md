@@ -18,7 +18,6 @@ EXPEL is a set of scripts that is designed to make developing plugins for EXILED
 
 Your system needs to have the following:
 
-- Bash (for the run script)
 - Docker 19.03 or newer (for BuildKit support)
 - Python 3.6 or newer (only if you're using system Python)
 - Around 5GB of storage (I'm working on reducing this)
@@ -30,8 +29,9 @@ With respect to operating systems, we have a table that lists how you can best r
 | Linux            | ✓                           | ✓                                 |
 | Windows          | ✓                           | ⚠<sup>2</sup>                     |
 
-1: Running with system Python is usually ~1 second faster per operation, but requires you to install Python.
-2: For this to work, you need to enable the option "Expose daemon on tcp://localhost:2375 without TLS". Please note the security consequences this brings: every process or container on your system can start additional containers.
+1: Running with system Python is usually 35% faster per operation compared to running inside Docker, but requires you to install Python on your system.
+
+2: For this to work, you need to enable the option "Expose daemon on tcp://localhost:2375 without TLS" in the Docker Desktop configuration panel. Please note the security consequences this has: every process or container on your system can start additional containers. We're open to more secure solutions
 
 ## How to install
 

@@ -167,6 +167,15 @@ def install():
     build_dir = work_dir / expel_cache / 'build-bin' / 'Release'
     plug_dir = work_dir / expel_cache / 'server-config' / 'EXILED' / 'Plugins'
     deps_dir = plug_dir / 'dependencies'
+
+    if not build_dir.exists():
+        print("ERROR: Build directory not found, please build your plugin first")
+        exit(1)
+
+    if not deps_dir.exists():
+        print("Creating Plugins folder")
+        deps_dir.mkdir(parents=True)
+
     for dll in build_dir.glob('*.dll'):
         if dll.stem in plugins:
             print(f"{dll} is a plugin")

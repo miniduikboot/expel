@@ -107,7 +107,7 @@ ENV EXILED_REFERENCES=/home/build/Managed
 COPY --from=steam /home/steam/scpslds/SCPSL_Data/Managed/*.dll /home/build/Managed/
 COPY --from=apublicizer /home/build/APublicizer/Assembly-CSharp-Publicized.dll /home/build/Managed/
 COPY --from=exiled-build /home/build/EXILED/bin/Release/*.dll /home/build/Managed/
-RUN mkdir plugin
+RUN mkdir plugin obj bin
 
 WORKDIR /home/build/plugin
 ENTRYPOINT ["/usr/bin/msbuild"]

@@ -51,6 +51,10 @@ class DockerBindMount:
 
         if not src.resolve().is_dir():
             src.mkdir(parents=True)
+            # HACK: the expel containers use a different user id which is
+            # likely different that the local user id. We set the permissions
+            # to 777 to make sure that the container can write to these dirs.
+            src.chmod(0o777)
 
     def mount_arg(self) -> str:
         """
@@ -103,7 +107,7 @@ def restore_mounts():
     """
     return [
         DockerBindMount(Path("."), "/home/build/plugin", True),
-        DockerBindMount(expel_cache / "build-obj", "/home/build/plugin/obj"),
+        DockerBindMount(expel_cache / "build-obj", "/home/build/obj"),
         DockerBindMount(expel_cache / "build-nuget", "/home/build/.nuget"),
         DockerBindMount(
             expel_cache / "build-nuget-cache", "/home/build/.local/share/NuGet/"
@@ -117,7 +121,7 @@ def build_mounts():
     nuget cache dirs
     """
     return restore_mounts() + [
-        DockerBindMount(expel_cache / "build-bin", "/home/build/plugin/bin")
+        DockerBindMount(expel_cache / "build-bin", "/home/build/bin")
     ]
 
 
@@ -151,6 +155,9 @@ def build():
             '/home/build/Managed"',
             # Build the plugin in release mode by default
             "-p:Configuration=Release",
+            # Move the obj and bin folders to outside of the main build
+            "-p:BaseIntermediateOutputPath=/home/build/obj/",
+            "-p:OutputPath=/home/build/bin/",
         ],
     )
 
@@ -167,7 +174,7 @@ def install():
     work_dir = options["build_path"]
     plugins = {csproj.stem for csproj in Path(work_dir).glob("**/*.csproj")}
 
-    build_dir = work_dir / expel_cache / "build-bin" / "Release"
+    build_dir = work_dir / expel_cache / "build-bin"
     plug_dir = work_dir / expel_cache / "server-config" / "EXILED" / "Plugins"
     deps_dir = plug_dir / "dependencies"
 
@@ -196,7 +203,10 @@ def restore():
         "expel-plugin-build",
         restore_mounts(),
         [],
-        ["-t:restore"],
+        [
+            "-t:restore",
+            "-p:BaseIntermediateOutputPath=/home/build/obj/",
+        ],
     )
 
 

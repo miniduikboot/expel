@@ -30,7 +30,7 @@ RUN sed -i "s/main/main non-free/g" /etc/apt/sources.list \
 USER steam
 WORKDIR /home/steam
 # Install the SL dedicated server in /home/steam/scpslds
-RUN /usr/games/steamcmd +login anonymous +force_install_dir /home/steam/scpslds +app_update 996560 +quit
+RUN /usr/games/steamcmd +login anonymous +force_install_dir /home/steam/scpslds +app_update 996560 -beta 10.2.2 +quit
 
 ## C# Setup
 # These containers are a generic base for building and running C# code

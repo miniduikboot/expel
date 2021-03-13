@@ -72,7 +72,7 @@ COPY --chown=build:build EXILED EXILED
 WORKDIR /home/build/EXILED
 ENV EXILED_REFERENCES=/home/build/Managed
 RUN --mount=type=cache,id=nuget,target=/home/build/.local/share/NuGet/,uid=2965 \
-  for project in API Bootstrap CreditTags Events Example Loader Permissions Updater; \
+  for project in API Bootstrap CreditTags CustomItems Events Example Loader Permissions Updater; \
   do \
     msbuild -t:restore Exiled.$project; \
   done

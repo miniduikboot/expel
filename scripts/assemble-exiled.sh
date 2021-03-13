@@ -11,5 +11,5 @@ mkdir -p $TARGET_DIR/Plugins/dependencies
 
 cp $SOURCE_DIR/Exiled.Loader.dll $TARGET_DIR
 # NOTE Updater is removed to remove the auto-updating feature of EXILED
-cp $SOURCE_DIR/Exiled.{Events,Permissions}.dll $TARGET_DIR/Plugins
+cp $SOURCE_DIR/Exiled.{CreditTags,CustomItems,Events,Permissions}.dll $TARGET_DIR/Plugins
 cp $SOURCE_DIR/{0Harmony,Exiled.API,YamlDotNet}.dll $TARGET_DIR/Plugins/dependencies
